@@ -143,7 +143,7 @@ else:
             word_timestamps.append({"word": word[2], "start": word[0], "end": word[1]})
 
 
-# convert audio to mono for NeMo combatibility
+# convert audio to mono for NeMo compatibility
 sound = AudioSegment.from_file(vocal_target).set_channels(1)
 ROOT = os.getcwd()
 temp_path = os.path.join(ROOT, "temp_outputs")
