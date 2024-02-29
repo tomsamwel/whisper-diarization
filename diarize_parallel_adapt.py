@@ -41,7 +41,7 @@ def main(args):
     )
     # Transcribe the audio file
     if args.batch_size != 0:
-        from transcription_helpers import transcribe_batched
+        from whisper_diarization.transcription_helpers import transcribe_batched
 
         whisper_results, language = transcribe_batched(
             vocal_target,
@@ -53,7 +53,7 @@ def main(args):
             args.device,
         )
     else:
-        from transcription_helpers import transcribe
+        from whisper_diarization.transcription_helpers import transcribe
 
         whisper_results, language = transcribe(
             vocal_target,
