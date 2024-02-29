@@ -1,6 +1,6 @@
 import argparse
 import os
-from helpers import *
+from whisper_diarization.helpers import *
 from faster_whisper import WhisperModel
 import whisperx
 import torch
