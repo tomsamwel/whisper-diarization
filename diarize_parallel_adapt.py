@@ -4,10 +4,9 @@ from whisper_diarization.helpers import *
 from faster_whisper import WhisperModel
 import whisperx
 import torch
-from pydub import AudioSegment
-from nemo.collections.asr.models.msdd_models import NeuralDiarizer
 from deepmultilingualpunctuation import PunctuationModel
 import re
+import subprocess
 import logging
 
 
@@ -36,9 +35,13 @@ def main(args):
     else:
         vocal_target = args.audio
 
+    logging.info("Starting Nemo process with vocal_target: ", vocal_target)
+    nemo_process = subprocess.Popen(
+        ["python3", "whisper_diarization/nemo_process.py", "-a", vocal_target, "--device", args.device],
+    )
     # Transcribe the audio file
     if args.batch_size != 0:
-        from whisper_diarization.transcription_helpers import transcribe_batched
+        from transcription_helpers import transcribe_batched
 
         whisper_results, language = transcribe_batched(
             vocal_target,
@@ -50,7 +53,7 @@ def main(args):
             args.device,
         )
     else:
-        from whisper_diarization.transcription_helpers import transcribe
+        from transcription_helpers import transcribe
 
         whisper_results, language = transcribe(
             vocal_target,
@@ -78,8 +81,7 @@ def main(args):
         torch.cuda.empty_cache()
     else:
         assert (
-            args.batch_size
-            == 0  # TODO: add a better check for word timestamps existence
+            args.batch_size == 0  # TODO: add a better check for word timestamps existence
         ), (
             f"Unsupported language: {language}, use --batch_size to 0"
             " to generate word timestamps using whisper directly and fix this error."
@@ -87,25 +89,12 @@ def main(args):
         word_timestamps = []
         for segment in whisper_results:
             for word in segment["words"]:
-                word_timestamps.append(
-                    {"word": word[2], "start": word[0], "end": word[1]}
-                )
-
-    # convert audio to mono for NeMo combatibility
-    sound = AudioSegment.from_file(vocal_target).set_channels(1)
-    ROOT = os.getcwd()
-    temp_path = os.path.join(ROOT, "temp_outputs")
-    os.makedirs(temp_path, exist_ok=True)
-    sound.export(os.path.join(temp_path, "mono_file.wav"), format="wav")
-
-    # Initialize NeMo MSDD diarization model
-    msdd_model = NeuralDiarizer(cfg=create_config(temp_path)).to(args.device)
-    msdd_model.diarize()
-
-    del msdd_model
-    torch.cuda.empty_cache()
+                word_timestamps.append({"word": word[2], "start": word[0], "end": word[1]})
 
     # Reading timestamps <> Speaker Labels mapping
+    nemo_process.communicate()
+    ROOT = os.getcwd()
+    temp_path = os.path.join(ROOT, "temp_outputs")
 
     speaker_ts = []
     with open(os.path.join(temp_path, "pred_rttms", "mono_file.rttm"), "r") as f:
@@ -155,15 +144,13 @@ def main(args):
     with open(f"{os.path.splitext(args.audio)[0]}.txt", "w", encoding="utf-8-sig") as f:
         get_speaker_aware_transcript(ssm, f)
 
-    with open(
-        f"{os.path.splitext(args.audio)[0]}.srt", "w", encoding="utf-8-sig"
-    ) as srt:
+    with open(f"{os.path.splitext(args.audio)[0]}.srt", "w", encoding="utf-8-sig") as srt:
         write_srt(ssm, srt)
 
     cleanup(temp_path)
 
-
 if __name__ == "__main__":
+    
     # Initialize parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -218,4 +205,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    main(args)
+
     main(args)

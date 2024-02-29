@@ -1,6 +1,6 @@
 import argparse
 import os
-from helpers import *
+from whisper_diarization.helpers import *
 import torch
 from pydub import AudioSegment
 from nemo.collections.asr.models.msdd_models import NeuralDiarizer
